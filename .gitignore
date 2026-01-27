@@ -29,6 +29,7 @@ go.work.sum
 
 # binary
 kubernetes-extension
+bin/
 
 # Editor/IDE
 # .idea/
