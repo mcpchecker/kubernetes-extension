@@ -32,5 +32,5 @@ kubernetes-extension
 bin/
 
 # Editor/IDE
-# .idea/
+.idea/
 # .vscode/
