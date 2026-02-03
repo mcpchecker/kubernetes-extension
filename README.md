@@ -8,6 +8,7 @@ This extension enables declarative Kubernetes interactions within mcpchecker tas
 
 | Operation | Description |
 |-----------|-------------|
+| `kubernetes.authCanI` | Check if a user or service account can perform an action on a resource |
 | `kubernetes.create` | Create a Kubernetes resource |
 | `kubernetes.delete` | Delete a Kubernetes resource |
 | `kubernetes.wait` | Wait for a condition on a resource (e.g., `Ready`, `Available`) |
