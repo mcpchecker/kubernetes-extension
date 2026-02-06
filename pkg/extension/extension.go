@@ -17,9 +17,10 @@ import (
 // Extension wraps the SDK extension with Kubernetes client
 type Extension struct {
 	*sdk.Extension
-	client ResourceClient
+	client         ResourceClient
+	kubeconfigPath string
 
-	mu                   sync.Mutex
+	mu                  sync.Mutex
 	generatedNamespaces []string
 }
 
@@ -89,6 +90,7 @@ func (e *Extension) handleInitialize(config map[string]any) error {
 		authzClient:    authzClient,
 		kubeconfigPath: kubeconfigPath,
 	}
+	e.kubeconfigPath = kubeconfigPath
 	return nil
 }
 
