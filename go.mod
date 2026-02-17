@@ -6,7 +6,7 @@ require (
 	github.com/google/jsonschema-go v0.4.2
 	github.com/mcpchecker/mcpchecker v0.0.6
 	k8s.io/api v0.35.0
-	k8s.io/apimachinery v0.35.0
+	k8s.io/apimachinery v0.35.1
 	k8s.io/client-go v0.35.0
 )
 
