@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/mcpchecker/mcpchecker/pkg/extension/sdk"
 	"k8s.io/client-go/dynamic"
@@ -17,6 +18,9 @@ import (
 type Extension struct {
 	*sdk.Extension
 	client ResourceClient
+
+	mu                   sync.Mutex
+	generatedNamespaces []string
 }
 
 // New creates a new Kubernetes extension
