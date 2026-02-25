@@ -192,4 +192,33 @@ func (e *Extension) registerOperations() {
 		),
 		e.handleViewConfig,
 	)
+
+	e.AddOperation(
+		sdk.NewOperation("createNamespace",
+			sdk.WithDescription("Create a Kubernetes namespace with a generated suffix"),
+			sdk.WithParams(jsonschema.Schema{
+				Type:        "object",
+				Description: "Namespace creation parameters",
+				Properties: map[string]*jsonschema.Schema{
+					"prefix": {
+						Type:        "string",
+						Description: "Prefix for the namespace name (e.g., vm-test produces vm-test-a1b2c3)",
+					},
+				},
+				Required: []string{"prefix"},
+			}),
+		),
+		e.handleCreateNamespace,
+	)
+
+	e.AddOperation(
+		sdk.NewOperation("deleteGeneratedNamespaces",
+			sdk.WithDescription("Delete all namespaces previously created by createNamespace"),
+			sdk.WithParams(jsonschema.Schema{
+				Type:        "object",
+				Description: "No parameters required",
+			}),
+		),
+		e.handleDeleteGeneratedNamespaces,
+	)
 }
