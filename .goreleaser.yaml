@@ -1,5 +1,9 @@
 version: 2
 
+git:
+  ignore_tags:
+    - nightly
+
 builds:
   - main: ./cmd
     binary: "kubernetes-extension-{{ .Os }}-{{ .Arch }}"
@@ -34,12 +38,6 @@ signs:
 
 release:
   prerelease: auto
-
-nightly:
-  tag_name: nightly
-  name_template: "Nightly Release ({{ .Date }} - {{ .ShortCommit }})"
-  keep_single_release: true
-  publish_release: true
 
 changelog:
   sort: asc
