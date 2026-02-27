@@ -1,0 +1,45 @@
+version: 2
+
+builds:
+  - main: ./cmd
+    binary: "kubernetes-extension-{{ .Os }}-{{ .Arch }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: zip
+    name_template: "kubernetes-extension-{{ .Os }}-{{ .Arch }}"
+
+signs:
+  - cmd: cosign
+    artifacts: archive
+    signature: "${artifact}.bundle"
+    args:
+      - sign-blob
+      - --yes
+      - "${artifact}"
+      - --bundle
+      - "${signature}"
+
+release:
+  prerelease: auto
+
+nightly:
+  tag_name: nightly
+  name_template: "Nightly Release ({{ .Date }} - {{ .ShortCommit }})"
+  keep_single_release: true
+  publish_release: true
+
+changelog:
+  sort: asc

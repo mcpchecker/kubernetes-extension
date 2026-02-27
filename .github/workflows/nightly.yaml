@@ -11,14 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-and-create-nightly:
+  check-commits:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     outputs:
-      nightly_version: ${{ env.NIGHTLY_VERSION }}
-      skip_nightly: ${{ env.SKIP_NIGHTLY }}
-      changelog_body: ${{ env.CHANGELOG_BODY }}
+      skip_nightly: ${{ steps.check.outputs.skip_nightly }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -26,7 +22,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check for unreleased commits
-        id: check_commits
+        id: check
         run: |
           # Find the latest release tag (any x.y.z release)
           LATEST_RELEASE=$(git tag -l 'v*.*.*' --sort=-version:refname | grep -v 'prerelease' | grep -v '^nightly' | head -n1)
@@ -34,18 +30,16 @@ jobs:
           if [ -z "$LATEST_RELEASE" ]; then
             echo "No existing releases found, creating first nightly"
             COMMITS_SINCE_RELEASE=$(git rev-list HEAD --count)
-            LATEST_RELEASE_COMMIT=""
           else
             echo "Latest release: $LATEST_RELEASE"
             COMMITS_SINCE_RELEASE=$(git rev-list ${LATEST_RELEASE}..HEAD --count)
-            LATEST_RELEASE_COMMIT="$LATEST_RELEASE"
           fi
 
           echo "Commits since latest release: $COMMITS_SINCE_RELEASE"
 
           if [ "$COMMITS_SINCE_RELEASE" -eq "0" ]; then
             echo "No new commits since latest release, skipping nightly"
-            echo "SKIP_NIGHTLY=true" >> "$GITHUB_ENV"
+            echo "skip_nightly=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -59,31 +53,26 @@ jobs:
 
           if [ "$EXISTING_NIGHTLY_COMMIT" = "$CURRENT_COMMIT" ]; then
             echo "Nightly release already exists for current commit"
-            echo "SKIP_NIGHTLY=true" >> "$GITHUB_ENV"
+            echo "skip_nightly=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Use fixed nightly tag name
-          NIGHTLY_VERSION="nightly"
-          echo "NIGHTLY_VERSION=$NIGHTLY_VERSION" >> "$GITHUB_ENV"
-          echo "Creating nightly release: $NIGHTLY_VERSION"
+          echo "skip_nightly=false" >> "$GITHUB_OUTPUT"
 
-      - name: Extract changelog for nightly
-        id: changelog
-        if: env.SKIP_NIGHTLY != 'true'
-        run: |
-          # Extract the Unreleased section from CHANGELOG.md using make target
-          CHANGELOG_CONTENT=$(make extract-changelog-unreleased)
-
-          # Save to environment variable, handling multiline content
-          {
-            echo 'CHANGELOG_BODY<<EOF'
-            echo "$CHANGELOG_CONTENT"
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
+  nightly-release:
+    needs: check-commits
+    if: needs.check-commits.outputs.skip_nightly != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write  # Permission for keyless signing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Delete existing nightly release and tag
-        if: env.SKIP_NIGHTLY != 'true'
         run: |
           # Delete existing nightly release if it exists
           if gh release view nightly >/dev/null 2>&1; then
@@ -95,43 +84,10 @@ jobs:
           if git rev-parse --verify nightly >/dev/null 2>&1; then
             echo "Deleting existing nightly tag"
             git tag -d nightly
-            if ! git push origin :refs/tags/nightly; then
-              echo "Warning: Failed to delete remote nightly tag" >&2
-              exit 1
-            fi
+            git push origin :refs/tags/nightly 2>/dev/null || true
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create nightly release
-        if: env.SKIP_NIGHTLY != 'true'
-        run: |
-          VERSION="${{ env.NIGHTLY_VERSION }}"
-          CURRENT_DATE=$(date -u +%Y-%m-%d)
-          SHORT_COMMIT=$(git rev-parse --short HEAD)
-
-          echo "Creating nightly release: $VERSION"
-          gh release create "$VERSION" \
-            --title "Nightly Release ($CURRENT_DATE - $SHORT_COMMIT)" \
-            --notes "${{ env.CHANGELOG_BODY }}" \
-            --prerelease
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-and-upload:
-    needs: check-and-create-nightly
-    if: needs.check-and-create-nightly.outputs.skip_nightly != 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write  # Permission for keyless signing
-    strategy:
-      matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -141,19 +97,10 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.0.0
 
-      - name: Build release artifacts
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: make build-release package-release
-
-      - name: Sign release artifacts
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: make sign-release
-
-      - name: Upload assets to nightly release
-        run: make upload-release-assets VERSION="${{ needs.check-and-create-nightly.outputs.nightly_version }}"
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --nightly --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
