@@ -72,20 +72,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Delete existing nightly release and tag
+      - name: Prepare nightly release
         run: |
-          # Delete existing nightly release if it exists
-          if gh release view nightly >/dev/null 2>&1; then
-            echo "Deleting existing nightly release"
-            gh release delete nightly --yes
-          fi
-
-          # Delete existing nightly tag if it exists
-          if git rev-parse --verify nightly >/dev/null 2>&1; then
-            echo "Deleting existing nightly tag"
-            git tag -d nightly
-            git push origin :refs/tags/nightly 2>/dev/null || true
-          fi
+          gh release delete nightly --yes --cleanup-tag || true
+          gh release create nightly \
+            --title "Nightly ($(date -u +%Y-%m-%d) - $(git rev-parse --short HEAD))" \
+            --generate-notes \
+            --prerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,6 +94,11 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: release --nightly --clean
+          args: release --snapshot --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        run: gh release upload nightly dist/*.zip dist/*.bundle dist/checksums.txt --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
