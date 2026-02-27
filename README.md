@@ -12,6 +12,9 @@ This extension enables declarative Kubernetes interactions within mcpchecker tas
 | `kubernetes.create` | Create a Kubernetes resource |
 | `kubernetes.delete` | Delete a Kubernetes resource |
 | `kubernetes.getCurrentContext` | Get the current context from kubeconfig |
+| `kubernetes.helmInstall` | Install a Helm chart as a release |
+| `kubernetes.helmList` | List Helm releases in a namespace or all namespaces |
+| `kubernetes.helmUninstall` | Uninstall a Helm release |
 | `kubernetes.listContexts` | List all contexts from kubeconfig |
 | `kubernetes.viewConfig` | View kubeconfig as YAML (optionally minified) |
 | `kubernetes.wait` | Wait for a condition on a resource (e.g., `Ready`, `Available`) |
@@ -87,6 +90,52 @@ spec:
     inline: Create an nginx pod named web-server in the test-namespace namespace
 ```
 
+### Helm Example
+
+Test Helm operations using declarative setup and cleanup:
+
+```yaml
+kind: Task
+apiVersion: gevals/v1alpha2
+metadata:
+  name: "list-helm-releases"
+  difficulty: easy
+spec:
+  requires:
+    - extension: kubernetes
+
+  setup:
+    # Create namespace
+    - kubernetes.create:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: helm-test
+
+    # Install a test release
+    - kubernetes.helmInstall:
+        chart: oci://registry-1.docker.io/bitnamicharts/nginx
+        name: test-nginx
+        namespace: helm-test
+
+  cleanup:
+    # Uninstall the release
+    - kubernetes.helmUninstall:
+        name: test-nginx
+        namespace: helm-test
+
+    # Delete namespace
+    - kubernetes.delete:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: helm-test
+        ignoreNotFound: true
+
+  prompt:
+    inline: List all Helm releases in the cluster
+```
+
 ## Operation Reference
 
 ### kubernetes.create
@@ -133,6 +182,48 @@ Waits for a condition on a resource. Supports configurable timeout and expected 
     condition: Available
     status: "True"    # optional, defaults to "True"
     timeout: 5m       # optional, defaults to 60s
+```
+
+### kubernetes.helmInstall
+
+Installs a Helm chart as a release. Supports chart repositories and OCI registries.
+
+```yaml
+- kubernetes.helmInstall:
+    chart: oci://registry-1.docker.io/bitnamicharts/nginx
+    name: my-nginx        # optional, generates name if not provided
+    namespace: default    # optional
+    values:               # optional Helm values
+      replicaCount: 2
+      service:
+        type: LoadBalancer
+```
+
+### kubernetes.helmList
+
+Lists Helm releases in a namespace or across all namespaces.
+
+```yaml
+# List in specific namespace
+- kubernetes.helmList:
+    namespace: default
+
+# List across all namespaces
+- kubernetes.helmList:
+    allNamespaces: true
+```
+
+**Outputs:**
+- `releases`: Information about found Helm releases (name, namespace, status, chart)
+
+### kubernetes.helmUninstall
+
+Uninstalls a Helm release. Gracefully handles releases that don't exist.
+
+```yaml
+- kubernetes.helmUninstall:
+    name: my-nginx
+    namespace: default    # optional
 ```
 
 ### kubernetes.listContexts
