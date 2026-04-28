@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/google/jsonschema-go v0.4.2
-	github.com/mcpchecker/mcpchecker v0.0.14
+	github.com/mcpchecker/mcpchecker v0.0.16
 	k8s.io/api v0.36.0
 	k8s.io/apimachinery v0.36.0
 	k8s.io/client-go v0.36.0
