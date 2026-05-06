@@ -99,6 +99,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
-        run: gh release upload nightly dist/*.zip dist/*.bundle dist/checksums.txt --clobber
+        run: gh release upload nightly dist/*.zip dist/*.bundle dist/*checksums.txt --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
