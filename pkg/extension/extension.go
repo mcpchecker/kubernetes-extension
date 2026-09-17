@@ -47,6 +47,11 @@ func (e *Extension) handleInitialize(config map[string]any) error {
 		kubeconfigPath = path
 	}
 
+	// If no kubeconfig specified in config, respect KUBECONFIG env var
+	if kubeconfigPath == "" {
+		kubeconfigPath = os.Getenv("KUBECONFIG")
+	}
+
 	// Expand ~ to home directory
 	if strings.HasPrefix(kubeconfigPath, "~") {
 		home, err := os.UserHomeDir()
